@@ -1,0 +1,1375 @@
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                    07/16/14 17:25:03 Page 1
+Test for ccdual
+C o m p i l a t i o n
+
+
+   2   
+   3  set s / 1*3 /;
+   4   
+   5  parameter p /1/;
+   6   
+      option seed = 2014;
+       
+      parameters coef1(s), coef2(s);
+       
+      parameter temp;
+       
+      loop(s,
+      	  	temp = uniform(0,1);
+      		coef1(s) = 9*temp+1;
+      		coef2(s) = 10-coef1(s);
+      );
+       
+      parameter coef1(s)  /1 1.14186, 2 9.25395, 3 8.10207, 4 7.49229, 5 9.93895, 6 9.85421, 7 7.73071, 8 3.10186, 9 1.92665, 10 5.24343/; 
+      parameter coef2(s) /1 8.85814, 2 0.746052, 3 1.89793, 4 2.50771, 5 0.0610547, 6 0.145789, 7 2.26929, 8 6.89814, 9 8.07335, 10 4.75657/; 
+  23   
+  24  parameter coef1(s)  /1 0.5, 2 9.5, 3 5/;
+  25  parameter coef2(s) /1 9.5, 2 0.5, 3 5/;
+  26   
+  27   
+  28  *--------------------------------------------------------------------------
+  29  * IP
+  30  *--------------------------------------------------------------------------
+  31   
+  32  variables
+  33    intz(s)
+  34    ipobj
+  35  ;
+  36   
+  37  positive variables x1,x2;
+  38  binary variables intz(s);
+  39   
+  40  equations
+  41    knapsackint
+  42    ipobjdef
+  43    intbigM(s) coef1[i]*x1+coef2[i]*x2+9*z[i] <= 10
+  44  ;
+  45   
+  46   
+  47  ipobjdef.. ipobj =e= 2*x1+3*x2;
+  48   
+  49  knapsackint.. sum(s, intz(s)) =g= card(s)-p;
+  50   
+  51  intbigM(s).. coef1(s)*x1+coef2(s)*x2+9*intz(s) =l= 10;
+  52   
+  53  x1.up = 1;
+  54  x2.up = 1;
+  55   
+  56  model ipmod /ipobjdef, knapsackint, intbigM/;
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                    07/16/14 17:25:03 Page 2
+Test for ccdual
+C o m p i l a t i o n
+
+
+  57  solve ipmod using mip maximizing ipobj;
+  58   
+  59  parameter exact;
+  60  exact = ipobj.l;
+  61   
+  62   
+  63   
+  64  *--------------------------------------------------------------------------
+  65  * LP
+  66  *--------------------------------------------------------------------------
+  67   
+  68  variables
+  69    z(s)
+  70    x1
+  71    x2
+  72    lpobj
+  73  ;
+  74   
+  75  equations
+  76    knapsack
+  77    lpobjdef
+  78    bigM(s) coef1[i]*x1+coef2[i]*x2+9*z[i] <= 10
+  79  ;
+  80   
+  81   
+  82  lpobjdef.. lpobj =e= 2*x1+3*x2;
+  83   
+  84  knapsack.. sum(s, z(s)) =g= card(s)-p;
+  85   
+  86  bigM(s).. coef1(s)*x1+coef2(s)*x2+9*z(s) =l= 10;
+  87   
+  88  x1.up = 1;
+  89  x2.up = 1;
+  90  z.up(s) = 1;
+  91   
+  92  model lpmod /lpobjdef, knapsack, bigM/;
+  93  solve lpmod using lp maximizing lpobj;
+  94   
+  95  parameter lpobjval;
+  96  lpobjval = lpobj.l;
+  97   
+  98  *--------------------------------------------------------------------------
+  99  * First V1
+ 100  *--------------------------------------------------------------------------
+ 101  variables
+ 102    u1(s)
+ 103    u2(s)
+ 104    w1(s)
+ 105    w2(s)
+ 106    v1obj
+ 107  ;
+ 108   
+ 109  positive variables u1,u2,w1,w2;
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                    07/16/14 17:25:03 Page 3
+Test for ccdual
+C o m p i l a t i o n
+
+
+ 110   
+ 111  equations
+ 112    nac1(s) lhs1 == x[0]
+ 113    nac2(s) lhs2 == x[1]
+ 114    scen(s) coef1[i]*u[2*i]+coef2[i]*u[2*i+1]-z[i] <= 0
+ 115    bound1(s)  w[2*i]+z[i] <= 1
+ 116    bound2(s)  w[2*i+1]+z[i] <= 1
+ 117    bound3(s)  u[2*i] <= z[i]
+ 118    bound4(s)  u[2*i+1] <= z[i]
+ 119    v1objdef
+ 120  ;
+ 121   
+ 122   
+ 123  v1objdef.. v1obj =e= 2*x1+3*x2;
+ 124   
+ 125  bound1(s).. w1(s)+z(s) =l= 1;
+ 126   
+ 127  bound2(s).. w2(s)+z(s) =l= 1;
+ 128   
+ 129  bound3(s).. u1(s)-z(s) =l= 0;
+ 130   
+ 131  bound4(s).. u2(s)-z(s) =l= 0;
+ 132   
+ 133  scen(s).. coef1(s)*u1(s)+coef2(s)*u2(s)-z(s) =l= 0;
+ 134   
+ 135  nac1(s).. u1(s)+w1(s)-x1 =e= 0;
+ 136   
+ 137  nac2(s).. u2(s)+w2(s)-x2 =e= 0;
+ 138   
+ 139   
+ 140   
+ 141  model mod1 /v1objdef, knapsack, bound1, bound2, bound3, bound4, scen, nac1, nac2/;
+ 142  solve mod1 using lp maximizing v1obj;
+ 143   
+ 144  parameter v1objval;
+ 145  v1objval = v1obj.l;
+ 146   
+ 147  *--------------------------------------------------------------------------
+ 148  * Quantile
+ 149  *--------------------------------------------------------------------------
+ 150  positive variables xscen1, xscen2;
+ 151  parameters scenobjval(s);
+ 152  parameters scencoef1, scencoef2;
+ 153  free variable scenobj;
+ 154  equations
+ 155          scenobjdef
+ 156          scencon
+ 157  ;
+ 158   
+ 159  scenobjdef.. scenobj =e= 2*xscen1+3*xscen2;
+ 160  scencon.. scencoef1*xscen1+scencoef2*xscen2 =l= 1;
+ 161   
+ 162  xscen1.up = 1;
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                    07/16/14 17:25:03 Page 4
+Test for ccdual
+C o m p i l a t i o n
+
+
+ 163  xscen2.up = 1;
+ 164  model scenmod /scenobjdef, scencon/;
+ 165   
+ 166  loop(s,
+ 167                  scencoef1 = coef1(s);
+ 168                  scencoef2 = coef2(s);
+ 169                  solve scenmod using lp maximizing scenobj;
+ 170                  scenobjval(s) = scenobj.l;
+ 171  );
+ 172   
+ 173  parameter quantile;
+ 174   
+ 175  alias(s,ss);
+ 176   
+ 177  parameter count;
+ 178  loop(s,
+ 179                  count = 0;
+ 180                  loop(ss$(ord(s) <> ord(ss)),
+ 181                          if (scenobjval(ss) < scenobjval(s),
+ 182                                  count = count+1;
+ 183                          );
+ 184                  );
+ 185                  if (count = p,
+ 186                          quantile = scenobjval(s);
+ 187                  );
+ 188  );
+ 189   
+      *--------------------------------------------------------------------------
+      * Then V2iterLP
+      *--------------------------------------------------------------------------
+      parameter U;
+       
+      variable y,v2iterlpobj;
+       
+      equations
+        yubound1(s) cu^i >= yz^i
+        ywbound2(s) cw^i >= y(1-z^i) 
+        v2iterlpobjdef	
+      ;
+       
+      v2iterlpobjdef.. v2iterlpobj =e= y;
+      yubound1(s).. 2*u1(s)+3*u2(s)-U*z(s)-y =g= -U;
+      ywbound2(s).. 2*w1(s)+3*w2(s)+U*z(s)-y =g= 0;
+       
+      model mod2 /v2iterlpobjdef, knapsack, bound1, bound2, bound3, bound4, scen, nac1, nac2, yubound1, ywbound2/;
+       
+      U = quantile;
+      parameter v2iterlpobjval;
+      parameter flag /1/;
+       
+      while (flag = 1,
+      	solve mod2 using lp maximizing v2iterlpobj;
+      	v2iterlpobjval = v2iterlpobj.l;
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                    07/16/14 17:25:03 Page 5
+Test for ccdual
+C o m p i l a t i o n
+
+
+      	display 'v2iterlpobjval = ', v2iterlpobjval;
+      	if (abs(v2iterlpobjval-U) < 1e-5,
+      		flag = 0;
+      	);
+      	U = v2iterlpobjval;
+      );
+       
+       
+       
+      *--------------------------------------------------------------------------
+      * Then V2LP
+      *--------------------------------------------------------------------------
+       
+      variable v2lpobj;
+       
+      equations
+        yubound(s) cu^i >= yz^i
+        ywbound(s) cw^i >= y(1-z^i) 
+        v2lpobjdef	
+      ;
+       
+      v2lpobjdef.. v2lpobj =e= y;
+      yubound(s).. 2*u1(s)+3*u2(s)-y*z(s) =g= 0;
+      ywbound(s).. 2*w1(s)+3*w2(s)-y+y*z(s) =g= 0;
+       
+      model mod3 /v2lpobjdef, knapsack, bound1, bound2, bound3, bound4, scen, nac1, nac2, yubound, ywbound/;
+      solve mod3 using nlp maximizing v2lpobj;
+       
+      *--------------------------------------------------------------------------
+      * Then V3LD
+      *--------------------------------------------------------------------------
+       
+      parameter LB /0.3/;
+       
+      parameter UB;
+       
+      UB = quantile;
+       
+      parameter l;
+       
+      free variable v3ldobj;
+       
+      positive variables s1(s), t1(s), s2(s), t2(s);
+       
+      equations
+        uboundfix1(s) cu^i >= lz^i
+        wboundfix2(s) cw^i >= l(1-z^i) 
+        relaxnac1(s)     u^i_w^i+s^i-t^i = x
+        relaxnac2(s)  
+        v3ldobjdefl	
+      ;
+       
+      v3ldobjdefl.. v3ldobj =e= sum(s, s1(s)) + sum(s, t1(s)) + sum(s, s2(s)) + sum(s, t2(s));
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                    07/16/14 17:25:03 Page 6
+Test for ccdual
+C o m p i l a t i o n
+
+
+      uboundfix1(s).. 2*u1(s)+3*u2(s)-l*z(s) =g= 0;
+      wboundfix2(s).. 2*w1(s)+3*w2(s)+l*z(s) =g= l;
+      relaxnac1(s).. u1(s)+w1(s)+s1(s)-t1(s)-x1 =e= 0;
+      relaxnac2(s).. u2(s)+w2(s)+s2(s)-t2(s)-x2 =e= 0;
+       
+      model mod4 /v3ldobjdefl, knapsack, bound1, bound2, bound3, bound4, scen, relaxnac1, relaxnac2, uboundfix1, wboundfix2/;
+       
+      parameter result;
+      while (abs(UB-LB)>1e-5,
+      	l = (LB+UB)*1.0/2;	
+      	solve mod4 using lp minimizing v3ldobj;
+      	result = v3ldobj.l;
+      	if (abs(result) < 1e-5,
+      		LB = l;
+      	else
+      		UB = l;
+      	);
+      );
+ 289  display 'exact=', exact;
+ 290  display 'quantile=', quantile;
+ 291  display 'lpobjval=', lpobjval;
+ 292  display 'v1objval=', v1objval;
+ 293   
+      display 'v2iterlpobjval=', U;
+      display 'v2lpobjval=',v2lpobj.l;
+      display 'v3ldobjval=',l;
+
+
+COMPILATION TIME     =        0.010 SECONDS      3 MB  24.1.3 r41464 XXX-DEG
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                    07/16/14 17:25:03 Page 7
+Test for ccdual
+Equation Listing    SOLVE ipmod Using MIP From line 57
+
+
+---- ipobjdef  =E=  
+
+ipobjdef..  ipobj - 2*x1 - 3*x2 =E= 0 ; (LHS = 0)
+     
+
+---- knapsackint  =G=  
+
+knapsackint..  intz(1) + intz(2) + intz(3) =G= 2 ; (LHS = 0, INFES = 2 ****)
+     
+
+---- intbigM  =L=  coef1[i]*x1+coef2[i]*x2+9*z[i] <= 10
+
+intbigM(1)..  9*intz(1) + 0.5*x1 + 9.5*x2 =L= 10 ; (LHS = 0)
+     
+intbigM(2)..  9*intz(2) + 9.5*x1 + 0.5*x2 =L= 10 ; (LHS = 0)
+     
+intbigM(3)..  9*intz(3) + 5*x1 + 5*x2 =L= 10 ; (LHS = 0)
+     
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                    07/16/14 17:25:03 Page 8
+Test for ccdual
+Column Listing      SOLVE ipmod Using MIP From line 57
+
+
+---- intz  
+
+intz(1)
+                (.LO, .L, .UP, .M = 0, 0, 1, 0)
+        1       knapsackint
+        9       intbigM(1)
+
+intz(2)
+                (.LO, .L, .UP, .M = 0, 0, 1, 0)
+        1       knapsackint
+        9       intbigM(2)
+
+intz(3)
+                (.LO, .L, .UP, .M = 0, 0, 1, 0)
+        1       knapsackint
+        9       intbigM(3)
+
+
+---- ipobj  
+
+ipobj
+                (.LO, .L, .UP, .M = -INF, 0, +INF, 0)
+        1       ipobjdef
+
+
+---- x1  
+
+x1
+                (.LO, .L, .UP, .M = 0, 0, 1, 0)
+       -2       ipobjdef
+        0.5     intbigM(1)
+        9.5     intbigM(2)
+        5       intbigM(3)
+
+
+---- x2  
+
+x2
+                (.LO, .L, .UP, .M = 0, 0, 1, 0)
+       -3       ipobjdef
+        9.5     intbigM(1)
+        0.5     intbigM(2)
+        5       intbigM(3)
+
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                    07/16/14 17:25:03 Page 9
+Test for ccdual
+Model Statistics    SOLVE ipmod Using MIP From line 57
+
+
+MODEL STATISTICS
+
+BLOCKS OF EQUATIONS           3     SINGLE EQUATIONS            5
+BLOCKS OF VARIABLES           4     SINGLE VARIABLES            6
+NON ZERO ELEMENTS            15     DISCRETE VARIABLES          3
+
+
+GENERATION TIME      =        0.071 SECONDS      4 MB  24.1.3 r41464 XXX-DEG
+
+
+EXECUTION TIME       =        0.071 SECONDS      4 MB  24.1.3 r41464 XXX-DEG
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 10
+Test for ccdual
+Solution Report     SOLVE ipmod Using MIP From line 57
+
+
+               S O L V E      S U M M A R Y
+
+     MODEL   ipmod               OBJECTIVE  ipobj
+     TYPE    MIP                 DIRECTION  MAXIMIZE
+     SOLVER  CPLEX               FROM LINE  57
+
+**** SOLVER STATUS     1 Normal Completion         
+**** MODEL STATUS      1 Optimal                   
+**** OBJECTIVE VALUE                0.6000
+
+ RESOURCE USAGE, LIMIT          0.338      1000.000
+ ITERATION COUNT, LIMIT         6    2000000000
+
+IBM ILOG CPLEX   24.1.3 r41464 Released Jul 26, 2013 DEG Mac x86_64/Darwin    
+Cplex 12.5.1.0
+
+MIP status(101): integer optimal solution
+Cplex Time: 0.09sec (det. 0.08 ticks)
+Fixing integer variables, and solving final LP...
+Fixed MIP status(1): optimal
+Cplex Time: 0.00sec (det. 0.01 ticks)
+Proven optimal solution.
+
+MIP Solution:            0.600000    (5 iterations, 0 nodes)
+Final Solve:             0.600000    (1 iterations)
+
+Best possible:           0.600000
+Absolute gap:            0.000000
+Relative gap:            0.000000
+
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- EQU ipobjdef            .              .              .             1.0000      
+---- EQU knapsacki~         2.0000         2.0000        +INF             .          
+
+---- EQU intbigM  coef1[i]*x1+coef2[i]*x2+9*z[i] <= 10
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1        -INF            1.9000        10.0000          .          
+2        -INF            9.1000        10.0000          .          
+3        -INF           10.0000        10.0000         0.6000      
+
+---- VAR intz  
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1          .              .             1.0000         EPS         
+2          .             1.0000         1.0000         EPS         
+3          .             1.0000         1.0000        -5.4000      
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 11
+Test for ccdual
+Solution Report     SOLVE ipmod Using MIP From line 57
+
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- VAR ipobj             -INF            0.6000        +INF             .          
+---- VAR x1                  .              .             1.0000        -1.0000      
+---- VAR x2                  .             0.2000         1.0000          .          
+
+
+**** REPORT SUMMARY :        0     NONOPT
+                             0 INFEASIBLE
+                             0  UNBOUNDED
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 12
+Test for ccdual
+Equation Listing    SOLVE lpmod Using LP From line 93
+
+
+---- lpobjdef  =E=  
+
+lpobjdef..  - 2*x1 - 3*x2 + lpobj =E= 0 ; (LHS = -0.6, INFES = 0.6 ****)
+     
+
+---- knapsack  =G=  
+
+knapsack..  z(1) + z(2) + z(3) =G= 2 ; (LHS = 0, INFES = 2 ****)
+     
+
+---- bigM  =L=  coef1[i]*x1+coef2[i]*x2+9*z[i] <= 10
+
+bigM(1)..  0.5*x1 + 9.5*x2 + 9*z(1) =L= 10 ; (LHS = 1.9)
+     
+bigM(2)..  9.5*x1 + 0.5*x2 + 9*z(2) =L= 10 ; (LHS = 0.0999999999999996)
+     
+bigM(3)..  5*x1 + 5*x2 + 9*z(3) =L= 10 ; (LHS = 1)
+     
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 13
+Test for ccdual
+Column Listing      SOLVE lpmod Using LP From line 93
+
+
+---- x1  
+
+x1
+                (.LO, .L, .UP, .M = 0, 0, 1, -1)
+       -2       lpobjdef
+        0.5     bigM(1)
+        9.5     bigM(2)
+        5       bigM(3)
+
+
+---- x2  
+
+x2
+                (.LO, .L, .UP, .M = 0, 0.2, 1, 0)
+       -3       lpobjdef
+        9.5     bigM(1)
+        0.5     bigM(2)
+        5       bigM(3)
+
+
+---- z  
+
+z(1)
+                (.LO, .L, .UP, .M = -INF, 0, 1, 0)
+        1       knapsack
+        9       bigM(1)
+
+z(2)
+                (.LO, .L, .UP, .M = -INF, 0, 1, 0)
+        1       knapsack
+        9       bigM(2)
+
+z(3)
+                (.LO, .L, .UP, .M = -INF, 0, 1, 0)
+        1       knapsack
+        9       bigM(3)
+
+
+---- lpobj  
+
+lpobj
+                (.LO, .L, .UP, .M = -INF, 0, +INF, 0)
+        1       lpobjdef
+
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 14
+Test for ccdual
+Model Statistics    SOLVE lpmod Using LP From line 93
+
+
+MODEL STATISTICS
+
+BLOCKS OF EQUATIONS           3     SINGLE EQUATIONS            5
+BLOCKS OF VARIABLES           4     SINGLE VARIABLES            6
+NON ZERO ELEMENTS            15
+
+
+GENERATION TIME      =        0.003 SECONDS      3 MB  24.1.3 r41464 XXX-DEG
+
+
+EXECUTION TIME       =        0.005 SECONDS      3 MB  24.1.3 r41464 XXX-DEG
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 15
+Test for ccdual
+Solution Report     SOLVE lpmod Using LP From line 93
+
+
+               S O L V E      S U M M A R Y
+
+     MODEL   lpmod               OBJECTIVE  lpobj
+     TYPE    LP                  DIRECTION  MAXIMIZE
+     SOLVER  CPLEX               FROM LINE  93
+
+**** SOLVER STATUS     1 Normal Completion         
+**** MODEL STATUS      1 Optimal                   
+**** OBJECTIVE VALUE                2.3333
+
+ RESOURCE USAGE, LIMIT          0.011      1000.000
+ ITERATION COUNT, LIMIT         4    2000000000
+
+IBM ILOG CPLEX   24.1.3 r41464 Released Jul 26, 2013 DEG Mac x86_64/Darwin    
+Cplex 12.5.1.0
+
+LP status(1): optimal
+Cplex Time: 0.00sec (det. 0.01 ticks)
+Optimal solution found.
+Objective :           2.333333
+
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- EQU lpobjdef            .              .              .             1.0000      
+---- EQU knapsack           2.0000         2.0000        +INF           -1.8333      
+
+---- EQU bigM  coef1[i]*x1+coef2[i]*x2+9*z[i] <= 10
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1        -INF           10.0000        10.0000         0.2037      
+2        -INF           10.0000        10.0000         0.0926      
+3        -INF           10.0000        10.0000         0.2037      
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- VAR x1                  .             0.0667         1.0000          .          
+---- VAR x2                  .             0.7333         1.0000          .          
+
+---- VAR z  
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1        -INF            0.3333         1.0000          .          
+2        -INF            1.0000         1.0000         1.0000      
+3        -INF            0.6667         1.0000          .          
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- VAR lpobj             -INF            2.3333        +INF             .          
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 16
+Test for ccdual
+Solution Report     SOLVE lpmod Using LP From line 93
+
+
+**** REPORT SUMMARY :        0     NONOPT
+                             0 INFEASIBLE
+                             0  UNBOUNDED
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 17
+Test for ccdual
+Equation Listing    SOLVE mod1 Using LP From line 142
+
+
+---- v1objdef  =E=  
+
+v1objdef..  - 2*x1 - 3*x2 + v1obj =E= 0 ; (LHS = -2.33333333333333, INFES = 2.33333333333333 ****)
+     
+
+---- knapsack  =G=  
+
+knapsack..  z(1) + z(2) + z(3) =G= 2 ; (LHS = 2)
+     
+
+---- bound1  =L=  w[2*i]+z[i] <= 1
+
+bound1(1)..  z(1) + w1(1) =L= 1 ; (LHS = 0.333333333333333)
+     
+bound1(2)..  z(2) + w1(2) =L= 1 ; (LHS = 1)
+     
+bound1(3)..  z(3) + w1(3) =L= 1 ; (LHS = 0.666666666666667)
+     
+
+---- bound2  =L=  w[2*i+1]+z[i] <= 1
+
+bound2(1)..  z(1) + w2(1) =L= 1 ; (LHS = 0.333333333333333)
+     
+bound2(2)..  z(2) + w2(2) =L= 1 ; (LHS = 1)
+     
+bound2(3)..  z(3) + w2(3) =L= 1 ; (LHS = 0.666666666666667)
+     
+
+---- bound3  =L=  u[2*i] <= z[i]
+
+bound3(1)..  - z(1) + u1(1) =L= 0 ; (LHS = -0.333333333333333)
+     
+bound3(2)..  - z(2) + u1(2) =L= 0 ; (LHS = -1)
+     
+bound3(3)..  - z(3) + u1(3) =L= 0 ; (LHS = -0.666666666666667)
+     
+
+---- bound4  =L=  u[2*i+1] <= z[i]
+
+bound4(1)..  - z(1) + u2(1) =L= 0 ; (LHS = -0.333333333333333)
+     
+bound4(2)..  - z(2) + u2(2) =L= 0 ; (LHS = -1)
+     
+bound4(3)..  - z(3) + u2(3) =L= 0 ; (LHS = -0.666666666666667)
+     
+
+---- scen  =L=  coef1[i]*u[2*i]+coef2[i]*u[2*i+1]-z[i] <= 0
+
+scen(1)..  - z(1) + 0.5*u1(1) + 9.5*u2(1) =L= 0 ; (LHS = -0.333333333333333)
+     
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 18
+Test for ccdual
+Equation Listing    SOLVE mod1 Using LP From line 142
+
+
+     scen  =L=  coef1[i]*u[2*i]+coef2[i]*u[2*i+1]-z[i] <= 0
+
+scen(2)..  - z(2) + 9.5*u1(2) + 0.5*u2(2) =L= 0 ; (LHS = -1)
+     
+scen(3)..  - z(3) + 5*u1(3) + 5*u2(3) =L= 0 ; (LHS = -0.666666666666667)
+     
+
+---- nac1  =E=  lhs1 == x[0]
+
+nac1(1)..  - x1 + u1(1) + w1(1) =E= 0 ; (LHS = -0.0666666666666667, INFES = 0.0666666666666667 ****)
+     
+nac1(2)..  - x1 + u1(2) + w1(2) =E= 0 ; (LHS = -0.0666666666666667, INFES = 0.0666666666666667 ****)
+     
+nac1(3)..  - x1 + u1(3) + w1(3) =E= 0 ; (LHS = -0.0666666666666667, INFES = 0.0666666666666667 ****)
+     
+
+---- nac2  =E=  lhs2 == x[1]
+
+nac2(1)..  - x2 + u2(1) + w2(1) =E= 0 ; (LHS = -0.733333333333333, INFES = 0.733333333333333 ****)
+     
+nac2(2)..  - x2 + u2(2) + w2(2) =E= 0 ; (LHS = -0.733333333333333, INFES = 0.733333333333333 ****)
+     
+nac2(3)..  - x2 + u2(3) + w2(3) =E= 0 ; (LHS = -0.733333333333333, INFES = 0.733333333333333 ****)
+     
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 19
+Test for ccdual
+Column Listing      SOLVE mod1 Using LP From line 142
+
+
+---- x1  
+
+x1
+                (.LO, .L, .UP, .M = 0, 0.0666666666666667, 1, 0)
+       -2       v1objdef
+       -1       nac1(1)
+       -1       nac1(2)
+       -1       nac1(3)
+
+
+---- x2  
+
+x2
+                (.LO, .L, .UP, .M = 0, 0.733333333333333, 1, 0)
+       -3       v1objdef
+       -1       nac2(1)
+       -1       nac2(2)
+       -1       nac2(3)
+
+
+---- z  
+
+z(1)
+                (.LO, .L, .UP, .M = -INF, 0.333333333333333, 1, 0)
+        1       knapsack
+        1       bound1(1)
+        1       bound2(1)
+       -1       bound3(1)
+       -1       bound4(1)
+       -1       scen(1)
+
+z(2)
+                (.LO, .L, .UP, .M = -INF, 1, 1, 1)
+        1       knapsack
+        1       bound1(2)
+        1       bound2(2)
+       -1       bound3(2)
+       -1       bound4(2)
+       -1       scen(2)
+
+z(3)
+                (.LO, .L, .UP, .M = -INF, 0.666666666666667, 1, 0)
+        1       knapsack
+        1       bound1(3)
+        1       bound2(3)
+       -1       bound3(3)
+       -1       bound4(3)
+       -1       scen(3)
+
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 20
+Test for ccdual
+Column Listing      SOLVE mod1 Using LP From line 142
+
+
+---- u1  
+
+u1(1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       bound3(1)
+        0.5     scen(1)
+        1       nac1(1)
+
+u1(2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       bound3(2)
+        9.5     scen(2)
+        1       nac1(2)
+
+u1(3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       bound3(3)
+        5       scen(3)
+        1       nac1(3)
+
+
+---- u2  
+
+u2(1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       bound4(1)
+        9.5     scen(1)
+        1       nac2(1)
+
+u2(2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       bound4(2)
+        0.5     scen(2)
+        1       nac2(2)
+
+u2(3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       bound4(3)
+        5       scen(3)
+        1       nac2(3)
+
+
+---- w1  
+
+w1(1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       bound1(1)
+        1       nac1(1)
+
+w1(2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       bound1(2)
+        1       nac1(2)
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 21
+Test for ccdual
+Column Listing      SOLVE mod1 Using LP From line 142
+
+
+     w1  
+
+
+w1(3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       bound1(3)
+        1       nac1(3)
+
+
+---- w2  
+
+w2(1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       bound2(1)
+        1       nac2(1)
+
+w2(2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       bound2(2)
+        1       nac2(2)
+
+w2(3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       bound2(3)
+        1       nac2(3)
+
+
+---- v1obj  
+
+v1obj
+                (.LO, .L, .UP, .M = -INF, 0, +INF, 0)
+        1       v1objdef
+
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 22
+Test for ccdual
+Model Statistics    SOLVE mod1 Using LP From line 142
+
+
+MODEL STATISTICS
+
+BLOCKS OF EQUATIONS           9     SINGLE EQUATIONS           23
+BLOCKS OF VARIABLES           8     SINGLE VARIABLES           18
+NON ZERO ELEMENTS            57
+
+
+GENERATION TIME      =        0.003 SECONDS      3 MB  24.1.3 r41464 XXX-DEG
+
+
+EXECUTION TIME       =        0.006 SECONDS      3 MB  24.1.3 r41464 XXX-DEG
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 23
+Test for ccdual
+Solution Report     SOLVE mod1 Using LP From line 142
+
+
+               S O L V E      S U M M A R Y
+
+     MODEL   mod1                OBJECTIVE  v1obj
+     TYPE    LP                  DIRECTION  MAXIMIZE
+     SOLVER  CPLEX               FROM LINE  142
+
+**** SOLVER STATUS     1 Normal Completion         
+**** MODEL STATUS      1 Optimal                   
+**** OBJECTIVE VALUE                2.0609
+
+ RESOURCE USAGE, LIMIT          0.012      1000.000
+ ITERATION COUNT, LIMIT        12    2000000000
+
+IBM ILOG CPLEX   24.1.3 r41464 Released Jul 26, 2013 DEG Mac x86_64/Darwin    
+Cplex 12.5.1.0
+
+LP status(1): optimal
+Cplex Time: 0.00sec (det. 0.05 ticks)
+Optimal solution found.
+Objective :           2.060904
+
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- EQU v1objdef            .              .              .             1.0000      
+---- EQU knapsack           2.0000         2.0000        +INF           -1.4695      
+
+---- EQU bound1  w[2*i]+z[i] <= 1
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1        -INF            0.9293         1.0000          .          
+2        -INF            1.0000         1.0000         1.5512      
+3        -INF            1.0000         1.0000         0.4488      
+
+---- EQU bound2  w[2*i+1]+z[i] <= 1
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1        -INF            1.0000         1.0000         1.6424      
+2        -INF            1.0000         1.0000         0.0816      
+3        -INF            1.0000         1.0000         1.2759      
+
+---- EQU bound3  u[2*i] <= z[i]
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1        -INF           -0.5972          .              .          
+2        -INF           -0.6680          .              .          
+3        -INF           -0.6680          .              .          
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 24
+Test for ccdual
+Solution Report     SOLVE mod1 Using LP From line 142
+
+
+---- EQU bound4  u[2*i+1] <= z[i]
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1        -INF           -0.5344          .              .          
+2        -INF           -0.5344          .              .          
+3        -INF           -0.5344          .              .          
+
+---- EQU scen  coef1[i]*u[2*i]+coef2[i]*u[2*i+1]-z[i] <= 0
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1        -INF             .              .             0.1729      
+2        -INF             .              .             0.1633      
+3        -INF             .              .             0.2552      
+
+---- EQU nac1  lhs1 == x[0]
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1          .              .              .             EPS         
+2          .              .              .            -1.5512      
+3          .              .              .            -0.4488      
+
+---- EQU nac2  lhs2 == x[1]
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1          .              .              .            -1.6424      
+2          .              .              .            -0.0816      
+3          .              .              .            -1.2759      
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- VAR x1                  .             0.3320         1.0000          .          
+---- VAR x2                  .             0.4656         1.0000          .          
+
+---- VAR z  
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1        -INF            0.5972         1.0000          .          
+2        -INF            0.7348         1.0000          .          
+3        -INF            0.6680         1.0000          .          
+
+---- VAR u1  
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1          .              .            +INF           -0.0864      
+2          .             0.0668        +INF             .          
+3          .              .            +INF           -0.8271      
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 25
+Test for ccdual
+Solution Report     SOLVE mod1 Using LP From line 142
+
+
+---- VAR u2  
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1          .             0.0629        +INF             .          
+2          .             0.2004        +INF             .          
+3          .             0.1336        +INF             .          
+
+---- VAR w1  
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1          .             0.3320        +INF             .          
+2          .             0.2652        +INF             .          
+3          .             0.3320        +INF             .          
+
+---- VAR w2  
+
+         LOWER          LEVEL          UPPER         MARGINAL
+
+1          .             0.4028        +INF             .          
+2          .             0.2652        +INF             .          
+3          .             0.3320        +INF             .          
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- VAR v1obj             -INF            2.0609        +INF             .          
+
+
+**** REPORT SUMMARY :        0     NONOPT
+                             0 INFEASIBLE
+                             0  UNBOUNDED
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 26
+Test for ccdual
+Equation Listing    SOLVE scenmod Using LP From line 169
+
+
+---- scenobjdef  =E=  
+
+scenobjdef..  - 2*xscen1 - 3*xscen2 + scenobj =E= 0 ; (LHS = 0)
+     
+
+---- scencon  =L=  
+
+scencon..  0.5*xscen1 + 9.5*xscen2 =L= 1 ; (LHS = 0)
+     
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 27
+Test for ccdual
+Column Listing      SOLVE scenmod Using LP From line 169
+
+
+---- xscen1  
+
+xscen1
+                (.LO, .L, .UP, .M = 0, 0, 1, 0)
+       -2       scenobjdef
+        0.5     scencon
+
+
+---- xscen2  
+
+xscen2
+                (.LO, .L, .UP, .M = 0, 0, 1, 0)
+       -3       scenobjdef
+        9.5     scencon
+
+
+---- scenobj  
+
+scenobj
+                (.LO, .L, .UP, .M = -INF, 0, +INF, 0)
+        1       scenobjdef
+
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 28
+Test for ccdual
+Model Statistics    SOLVE scenmod Using LP From line 169
+
+
+LOOPS                                    s   1
+
+
+MODEL STATISTICS
+
+BLOCKS OF EQUATIONS           2     SINGLE EQUATIONS            2
+BLOCKS OF VARIABLES           3     SINGLE VARIABLES            3
+NON ZERO ELEMENTS             5
+
+
+GENERATION TIME      =        0.003 SECONDS      3 MB  24.1.3 r41464 XXX-DEG
+
+
+EXECUTION TIME       =        0.006 SECONDS      3 MB  24.1.3 r41464 XXX-DEG
+               L O O P S                  s 1
+
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 29
+Test for ccdual
+Solution Report     SOLVE scenmod Using LP From line 169
+
+
+               S O L V E      S U M M A R Y
+
+     MODEL   scenmod             OBJECTIVE  scenobj
+     TYPE    LP                  DIRECTION  MAXIMIZE
+     SOLVER  CPLEX               FROM LINE  169
+
+**** SOLVER STATUS     1 Normal Completion         
+**** MODEL STATUS      1 Optimal                   
+**** OBJECTIVE VALUE                2.1579
+
+ RESOURCE USAGE, LIMIT          0.011      1000.000
+ ITERATION COUNT, LIMIT         0    2000000000
+
+IBM ILOG CPLEX   24.1.3 r41464 Released Jul 26, 2013 DEG Mac x86_64/Darwin    
+Cplex 12.5.1.0
+
+LP status(1): optimal
+Cplex Time: 0.00sec (det. 0.00 ticks)
+Optimal solution found.
+Objective :           2.157895
+
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- EQU scenobjdef          .              .              .             1.0000      
+---- EQU scencon           -INF            1.0000         1.0000         0.3158      
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- VAR xscen1              .             1.0000         1.0000         1.8421      
+---- VAR xscen2              .             0.0526         1.0000          .          
+---- VAR scenobj           -INF            2.1579        +INF             .          
+
+
+**** REPORT SUMMARY :        0     NONOPT
+                             0 INFEASIBLE
+                             0  UNBOUNDED
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 30
+Test for ccdual
+Equation Listing    SOLVE scenmod Using LP From line 169
+
+
+---- scenobjdef  =E=  
+
+scenobjdef..  - 2*xscen1 - 3*xscen2 + scenobj =E= 0 ; (LHS = 0)
+     
+
+---- scencon  =L=  
+
+scencon..  9.5*xscen1 + 0.5*xscen2 =L= 1 ; (LHS = 9.52631578947368, INFES = 8.52631578947368 ****)
+     
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 31
+Test for ccdual
+Column Listing      SOLVE scenmod Using LP From line 169
+
+
+---- xscen1  
+
+xscen1
+                (.LO, .L, .UP, .M = 0, 1, 1, 1.84210526315789)
+       -2       scenobjdef
+        9.5     scencon
+
+
+---- xscen2  
+
+xscen2
+                (.LO, .L, .UP, .M = 0, 0.0526315789473684, 1, 0)
+       -3       scenobjdef
+        0.5     scencon
+
+
+---- scenobj  
+
+scenobj
+                (.LO, .L, .UP, .M = -INF, 2.15789473684211, +INF, 0)
+        1       scenobjdef
+
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 32
+Test for ccdual
+Model Statistics    SOLVE scenmod Using LP From line 169
+
+
+LOOPS                                    s   2
+
+
+MODEL STATISTICS
+
+BLOCKS OF EQUATIONS           2     SINGLE EQUATIONS            2
+BLOCKS OF VARIABLES           3     SINGLE VARIABLES            3
+NON ZERO ELEMENTS             5
+
+
+GENERATION TIME      =        0.002 SECONDS      3 MB  24.1.3 r41464 XXX-DEG
+
+
+EXECUTION TIME       =        0.005 SECONDS      3 MB  24.1.3 r41464 XXX-DEG
+               L O O P S                  s 2
+
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 33
+Test for ccdual
+Solution Report     SOLVE scenmod Using LP From line 169
+
+
+               S O L V E      S U M M A R Y
+
+     MODEL   scenmod             OBJECTIVE  scenobj
+     TYPE    LP                  DIRECTION  MAXIMIZE
+     SOLVER  CPLEX               FROM LINE  169
+
+**** SOLVER STATUS     1 Normal Completion         
+**** MODEL STATUS      1 Optimal                   
+**** OBJECTIVE VALUE                3.1053
+
+ RESOURCE USAGE, LIMIT          0.010      1000.000
+ ITERATION COUNT, LIMIT         0    2000000000
+
+IBM ILOG CPLEX   24.1.3 r41464 Released Jul 26, 2013 DEG Mac x86_64/Darwin    
+Cplex 12.5.1.0
+
+LP status(1): optimal
+Cplex Time: 0.00sec (det. 0.00 ticks)
+Optimal solution found.
+Objective :           3.105263
+
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- EQU scenobjdef          .              .              .             1.0000      
+---- EQU scencon           -INF            1.0000         1.0000         0.2105      
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- VAR xscen1              .             0.0526         1.0000          .          
+---- VAR xscen2              .             1.0000         1.0000         2.8947      
+---- VAR scenobj           -INF            3.1053        +INF             .          
+
+
+**** REPORT SUMMARY :        0     NONOPT
+                             0 INFEASIBLE
+                             0  UNBOUNDED
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 34
+Test for ccdual
+Equation Listing    SOLVE scenmod Using LP From line 169
+
+
+---- scenobjdef  =E=  
+
+scenobjdef..  - 2*xscen1 - 3*xscen2 + scenobj =E= 0 ; (LHS = 0)
+     
+
+---- scencon  =L=  
+
+scencon..  5*xscen1 + 5*xscen2 =L= 1 ; (LHS = 5.26315789473684, INFES = 4.26315789473684 ****)
+     
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 35
+Test for ccdual
+Column Listing      SOLVE scenmod Using LP From line 169
+
+
+---- xscen1  
+
+xscen1
+                (.LO, .L, .UP, .M = 0, 0.0526315789473684, 1, 0)
+       -2       scenobjdef
+        5       scencon
+
+
+---- xscen2  
+
+xscen2
+                (.LO, .L, .UP, .M = 0, 1, 1, 2.89473684210526)
+       -3       scenobjdef
+        5       scencon
+
+
+---- scenobj  
+
+scenobj
+                (.LO, .L, .UP, .M = -INF, 3.10526315789474, +INF, 0)
+        1       scenobjdef
+
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 36
+Test for ccdual
+Model Statistics    SOLVE scenmod Using LP From line 169
+
+
+LOOPS                                    s   3
+
+
+MODEL STATISTICS
+
+BLOCKS OF EQUATIONS           2     SINGLE EQUATIONS            2
+BLOCKS OF VARIABLES           3     SINGLE VARIABLES            3
+NON ZERO ELEMENTS             5
+
+
+GENERATION TIME      =        0.003 SECONDS      3 MB  24.1.3 r41464 XXX-DEG
+
+
+EXECUTION TIME       =        0.005 SECONDS      3 MB  24.1.3 r41464 XXX-DEG
+               L O O P S                  s 3
+
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 37
+Test for ccdual
+Solution Report     SOLVE scenmod Using LP From line 169
+
+
+               S O L V E      S U M M A R Y
+
+     MODEL   scenmod             OBJECTIVE  scenobj
+     TYPE    LP                  DIRECTION  MAXIMIZE
+     SOLVER  CPLEX               FROM LINE  169
+
+**** SOLVER STATUS     1 Normal Completion         
+**** MODEL STATUS      1 Optimal                   
+**** OBJECTIVE VALUE                0.6000
+
+ RESOURCE USAGE, LIMIT          0.010      1000.000
+ ITERATION COUNT, LIMIT         0    2000000000
+
+IBM ILOG CPLEX   24.1.3 r41464 Released Jul 26, 2013 DEG Mac x86_64/Darwin    
+Cplex 12.5.1.0
+
+LP status(1): optimal
+Cplex Time: 0.00sec (det. 0.00 ticks)
+Optimal solution found.
+Objective :           0.600000
+
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- EQU scenobjdef          .              .              .             1.0000      
+---- EQU scencon           -INF            1.0000         1.0000         0.6000      
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- VAR xscen1              .              .             1.0000        -1.0000      
+---- VAR xscen2              .             0.2000         1.0000          .          
+---- VAR scenobj           -INF            0.6000        +INF             .          
+
+
+**** REPORT SUMMARY :        0     NONOPT
+                             0 INFEASIBLE
+                             0  UNBOUNDED
+GAMS 24.1.3  r41464 Released Jul 26, 2013 XXX-DEG Mac x86_64/Darwin                                                                                                                                                                   07/16/14 17:25:03 Page 38
+Test for ccdual
+E x e c u t i o n
+
+
+----    289 exact=
+            PARAMETER exact                =        0.600  
+
+----    290 quantile=
+            PARAMETER quantile             =        2.158  
+
+----    291 lpobjval=
+            PARAMETER lpobjval             =        2.333  
+
+----    292 v1objval=
+            PARAMETER v1objval             =        2.061  
+
+
+EXECUTION TIME       =        0.001 SECONDS      3 MB  24.1.3 r41464 XXX-DEG
+
+
+USER: GAMS Development Corporation, Washington, DC   G871201/0000CA-ANY
+      Free Demo,  202-342-0180,  sales@gams.com,  www.gams.com   DC0000
+
+
+**** FILE SUMMARY
+
+Input      /Users/administrator/Documents/ccdual/functions/test.gms
+Output     /Users/administrator/Documents/ccdual/functions/test.lst
