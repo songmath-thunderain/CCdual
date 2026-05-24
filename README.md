@@ -1,0 +1,1 @@
+This repo contains the source code and test instances for paper "Nonanticipative Duality, Relaxations, and Formulations for Chance-constrained Stochastic Programs": https://link.springer.com/article/10.1007/s10107-016-1029-z
